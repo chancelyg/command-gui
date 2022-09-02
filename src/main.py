@@ -15,7 +15,6 @@ if args.data == './command-gui-data':
     args.data = os.path.join(os.getcwd(), 'command-gui-data')
 
 app = QApplication(sys.argv)
-app.setQuitOnLastWindowClosed(False)
 window = Window(cache_path=args.data)
 window.setWindowTitle('%s - %s' % (CONST_PROGRAMS, CONST_VERSION))
 window.show()

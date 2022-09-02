@@ -95,13 +95,15 @@ class Window(QtWidgets.QWidget):
         self._tray_menu = QtWidgets.QMenu()
         self._tray_menu.setFont(QFont("Noto Sans", 18))
         self._qt_action = QAction('Quit command-gui')
-        self._qt_action.triggered.connect(self.close)
+        self._qt_action.triggered.connect(self.quit)
         self._tray_menu.addAction(self._qt_action)
         self._tray.setContextMenu(self._tray_menu)
         self._tray.activated.connect(self.show)
 
         self._cache = Cache(cache_path)
         self._update_list_widget()
+
+        self._exit_flag = False
 
     def _excute_command(self):
         item = self._list_widget.currentItem()
@@ -134,3 +136,14 @@ class Window(QtWidgets.QWidget):
         self._list_widget.clear()
         for key in self._cache.iterkeys():
             self._list_widget.addItem(key)
+
+    def closeEvent(self, event):
+        if not self._exit_flag:
+            self.setVisible(False)
+            event.ignore()
+        if self._exit_flag:
+            event.accept()
+
+    def quit(self):
+        self._exit_flag = True
+        self.close()

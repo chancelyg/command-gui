@@ -35,7 +35,7 @@ class _AddDialog(QDialog):
 
 class Window(QWidget):
 
-    def __init__(self):
+    def __init__(self,cache_path:str):
         super().__init__()
         self.setWindowTitle("command-gui")
         self.setWindowIcon(QIcon("command-gui.ico"))
@@ -67,7 +67,7 @@ class Window(QWidget):
         # set the layout for the main window
         self.setLayout(vbox)
 
-        self._cache = Cache('command-gui')
+        self._cache = Cache(cache_path)
         self._update_list_widget()
 
     def item_clicked(self):

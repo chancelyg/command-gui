@@ -1,103 +1,136 @@
 import subprocess
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QListWidget, QPushButton, QLineEdit, QLabel, QDialog, QDialogButtonBox
-from PyQt6.QtGui import QFont, QIcon
+from PyQt6 import QtWidgets
+from PyQt6.QtGui import QFont, QIcon, QAction
 from diskcache import Cache
 
+from utils import get_resource
 
-class _AddDialog(QDialog):
+
+class _AddDialog(QtWidgets.QDialog):
 
     def __init__(self, name: str = '', command: str = '') -> None:
         super().__init__()
         self.setWindowTitle("command-gui")
         self.setFixedSize(500, 200)
-        self.layout = QVBoxLayout()
+        self.layout = QtWidgets.QVBoxLayout()
 
-        self.name_label = QLabel(text='Command Name')
-        self.layout.addWidget(self.name_label)
+        self._name_label = QtWidgets.QLabel(text='Command Name')
+        self._name_label.setFont(QFont("Noto Sans", 10))
+        self.layout.addWidget(self._name_label)
 
-        self.name_line = QLineEdit()
+        self.name_line = QtWidgets.QLineEdit()
+        self.name_line.setFont(QFont("Noto Sans", 14))
         self.name_line.setText(name)
         self.layout.addWidget(self.name_line)
 
-        self.command_label = QLabel(text='Command Value')
-        self.layout.addWidget(self.command_label)
+        self._command_label = QtWidgets.QLabel(text='Command Value')
+        self._command_label.setFont(QFont("Noto Sans", 10))
+        self.layout.addWidget(self._command_label)
 
-        self.command_line = QLineEdit()
+        self.command_line = QtWidgets.QLineEdit()
+        self.command_line.setFont(QFont("Noto Sans", 14))
         self.command_line.setText(command)
         self.layout.addWidget(self.command_line)
 
-        self.buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Ok
+                                                    | QtWidgets.QDialogButtonBox.StandardButton.Cancel)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
         self.layout.addWidget(self.buttonBox)
         self.setLayout(self.layout)
 
 
-class Window(QWidget):
+class Window(QtWidgets.QWidget):
 
-    def __init__(self,cache_path:str):
+    def __init__(self, cache_path: str):
         super().__init__()
         self.setWindowTitle("command-gui")
-        self.setWindowIcon(QIcon("command-gui.ico"))
-        self.setGeometry(500, 200, 500, 400)
+        self.setWindowIcon(QIcon(get_resource("command-gui.ico")))
+        self.setFixedSize(450, 900)
 
-        # create vbox layout object
-        vbox = QVBoxLayout()
-        # create object of list_widget
-        self.list_widget = QListWidget()
-        # add items to the listwidget
-        # self.list_widget.setStyleSheet('background-color:yellow')
-        self.list_widget.doubleClicked.connect(self.item_clicked)
-        self.setFont(QFont("Noto Sans", 12))
-        # self.setStyleSheet('color:brown')
+        self._vbox_main_layout = QtWidgets.QVBoxLayout()
 
-        # add widgets to the vboxlyaout
-        vbox.addWidget(self.list_widget)
+        self._label_commands = QtWidgets.QLabel(text='Commands')
+        self._label_commands.setFont(QFont("Noto Sans", 18))
+        self._vbox_main_layout.addWidget(self._label_commands)
 
-        self.add_button = QPushButton(text='Add Command')
-        self.add_button.clicked.connect(self.add_click)
-        self.edit_button = QPushButton(text='Edit Command')
-        self.edit_button.clicked.connect(self.edit_click)
-        self.remove_button = QPushButton(text='Remove Command')
-        self.remove_button.clicked.connect(self.delete_click)
-        vbox.addWidget(self.add_button)
-        vbox.addWidget(self.edit_button)
-        vbox.addWidget(self.remove_button)
+        self._list_widget = QtWidgets.QListWidget()
+        self._list_widget.doubleClicked.connect(self._excute_command)
+        self._list_widget.setToolTip('double click run this command')
+        self.setFont(QFont("Noto Sans", 16))
+        self._vbox_main_layout.addWidget(self._list_widget)
+
+        self._run_button = QtWidgets.QPushButton(text='Run')
+        self._run_button.clicked.connect(self._excute_command)
+        self._run_button.setStyleSheet("background-color: green")
+        self._run_button.setFont(QFont("Noto Sans", 14))
+        self._vbox_main_layout.addWidget(self._run_button)
+
+        self._form_layout = QtWidgets.QHBoxLayout()
+        self._add_button = QtWidgets.QPushButton(text='add')
+        self._add_button.setStyleSheet("background-color: blue")
+        self._add_button.setFont(QFont("Noto Sans", 10))
+        self._add_button.clicked.connect(self._add_click)
+        self._edit_button = QtWidgets.QPushButton(text='edit')
+        self._edit_button.setStyleSheet("background-color: blue")
+        self._edit_button.setFont(QFont("Noto Sans", 10))
+        self._edit_button.clicked.connect(self._edit_click)
+        self._remove_button = QtWidgets.QPushButton(text='remove')
+        self._remove_button.setStyleSheet("background-color: red")
+        self._remove_button.setFont(QFont("Noto Sans", 10))
+        self._remove_button.clicked.connect(self._delete_click)
+        self._form_layout.addWidget(self._add_button)
+        self._form_layout.addWidget(self._edit_button)
+        self._form_layout.addWidget(self._remove_button)
+        self._vbox_main_layout.addLayout(self._form_layout)
 
         # set the layout for the main window
-        self.setLayout(vbox)
+        self.setLayout(self._vbox_main_layout)
+
+        # set tray
+        self._tray = QtWidgets.QSystemTrayIcon()
+        self._tray.setIcon(QIcon(get_resource('command-gui.ico')))
+        self._tray.setVisible(True)
+        self._tray.setToolTip('command-gui')
+        self._tray_menu = QtWidgets.QMenu()
+        self._tray_menu.setFont(QFont("Noto Sans", 18))
+        self._qt_action = QAction('Quit command-gui')
+        self._qt_action.triggered.connect(self.close)
+        self._tray_menu.addAction(self._qt_action)
+        self._tray.setContextMenu(self._tray_menu)
+        self._tray.activated.connect(self.show)
 
         self._cache = Cache(cache_path)
         self._update_list_widget()
 
-    def item_clicked(self):
-        item = self.list_widget.currentItem()
+    def _excute_command(self):
+        item = self._list_widget.currentItem()
         try:
             command = [_ for _ in self._cache.get(item.text()).split(' ')]
             subprocess.Popen(command)
         except Exception:
             pass
 
-    def add_click(self):
+    def _add_click(self):
         add_dialog = _AddDialog()
         if add_dialog.exec() and add_dialog.name_line.text() and add_dialog.command_line.text():
             self._cache.set(add_dialog.name_line.text(), add_dialog.command_line.text())
             self._update_list_widget()
 
-    def edit_click(self):
-        item = self.list_widget.currentItem()
+    def _edit_click(self):
+        item = self._list_widget.currentItem()
         if item:
             add_dialog = _AddDialog(name=item.text(), command=self._cache.get(item.text()))
             if add_dialog.exec() and add_dialog.name_line.text() and add_dialog.command_line.text():
                 self._cache.set(add_dialog.name_line.text(), add_dialog.command_line.text())
                 self._update_list_widget()
 
-    def delete_click(self):
-        if self.list_widget.currentItem():
-            self._cache.delete(self.list_widget.currentItem().text())
+    def _delete_click(self):
+        if self._list_widget.currentItem():
+            self._cache.delete(self._list_widget.currentItem().text())
         self._update_list_widget()
 
     def _update_list_widget(self):
-        self.list_widget.clear()
+        self._list_widget.clear()
         for key in self._cache.iterkeys():
-            self.list_widget.addItem(key)
+            self._list_widget.addItem(key)

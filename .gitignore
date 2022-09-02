@@ -133,4 +133,4 @@ dmypy.json
 .vscode/
 
 # db data
-*.db
+command-gui-data
